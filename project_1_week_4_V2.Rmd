@@ -1,0 +1,212 @@
+---
+title: "Project_1_week-4_V2"
+author: "Robert Green"
+date: "2024-09-27"
+output: html_document
+---
+
+
+The required task is to read a text file with chess tournament results and 
+generate a .CSV file with information on all the players.
+
+```{r}
+
+library(stringr)
+library(stringi)
+
+```
+
+
+The file with the chess tournament results is read from GITHUB.
+```{r message=FALSE, warning=FALSE}
+
+ratings_tab_from_git <- readLines("https://raw.githubusercontent.com/RGreen-sps/scaling-umbrella/refs/heads/main/Project_1_table.txt")
+
+```
+
+
+The user will enter a 'Pair Num', a value to select the player of interest.
+```{r}
+
+
+player_pair_Num <- 1
+#player_pair_Num <- readline("** Player's Pair Number (enter at Console) ** : ")
+
+
+```
+
+
+The entered number is group together with other characters to form a search pattern.
+```{r}
+
+pair_num_space_pipe <-  c(" ", player_pair_Num, "\\|")
+
+pair_num_search <- str_flatten(pair_num_space_pipe, collapse = " ")
+
+```
+
+
+The table is searched with the given pattern and the first row position
+containing the player's information is located.
+```{r}
+
+row_pos <- grep(pair_num_search, ratings_tab_from_git)
+
+```
+
+
+
+The first and second row containing all the necessary information is selected.
+```{r}
+
+selected_player_row <- ratings_tab_from_git[row_pos]
+
+selected_player_row_2nd_line <- ratings_tab_from_git[row_pos + 1]
+
+```
+
+
+From the first row, the player's name and 'Total Pts' are extracted
+```{r}
+
+selected_player_name       <- substr(selected_player_row, 9, 40)
+
+selected_player_name       <- str_remove_all(selected_player_name, " {2,}")
+
+selected_player_total_pts  <- substr(selected_player_row,  42, 44)
+
+selected_player_total_pts  <- as.double(selected_player_total_pts)
+
+```
+
+
+From the second row, the players State and rating is extracted. The rating is
+converted to an integer.
+```{r}
+selected_player_state      <- substr(selected_player_row_2nd_line,  4,  5)
+
+selected_player_rating_pre <- substr(selected_player_row_2nd_line, 22, 26)
+
+selected_player_rating_pre <- as.integer(selected_player_rating_pre)
+```
+
+
+The extracted information along with a new field (average) is assigned 
+to a data frame. Other players information will be appended to this data frame.
+```{r}
+average <- 0L
+
+player_s_info_df <- ""
+
+
+player_s_info_df <- data.frame(selected_player_name, selected_player_state, selected_player_total_pts,
+                          selected_player_rating_pre, average)
+
+player_s_info_df
+```
+
+
+All game results, round-1 to round-7 will be saved to a vector. Each element of
+the vector will contain the player's number that identifies the player and the 
+outcome of the game. For these calculations, only, a win, draw, or loss outcome 
+will be used in further calculations.
+```{r}
+
+round_1_to_7_vec <- c(substr(selected_player_row,  48, 52),
+                      substr(selected_player_row,  54, 58),
+                      substr(selected_player_row,  60, 64),
+                      substr(selected_player_row,  66, 70),
+                      substr(selected_player_row,  72, 76),
+                      substr(selected_player_row,  78, 82),
+                      substr(selected_player_row,  84, 88))
+
+```
+
+
+
+The for loop will examine each element for a win(W), draw(D), or loss(L), 
+at which point the selected player's first row and second row will be selected
+from the ratings table('ratings_tab_from_git') and, as before, the necessary 
+data are extracted and appended to the 'player_s_info_df' data frame.
+```{r for loop}
+
+for(i in 1:length(round_1_to_7_vec)) { #vector containing game outcome
+  win_draw_lose <- substr(round_1_to_7_vec[i], 1, 1)
+  
+  #identification of game results
+  if(win_draw_lose == "W" | win_draw_lose == "D" | win_draw_lose == "L") {
+    player_pair_Num <- str_extract(round_1_to_7_vec[i], "[(0-9)]{1,}")
+    
+    #selected players number paired with search pattern
+    pair_num_space_pipe <-  c(" ", player_pair_Num, "\\|")
+    pair_num_search <- str_flatten(pair_num_space_pipe, collapse = " ")
+    
+    #row position located and selected
+    row_pos <- grep(pair_num_search, ratings_tab_from_git) 
+    selected_player_row <- ratings_tab_from_git[row_pos]
+    selected_player_row_2nd_line <- ratings_tab_from_git[row_pos + 1]
+    
+    #player's information extracted
+    selected_player_name <- substr(selected_player_row, 9, 40)
+    selected_player_name <- str_remove_all(selected_player_name, " {2,}")
+    
+    selected_player_total_pts  <- substr(selected_player_row,  42, 44)
+    selected_player_total_pts  <- as.double(selected_player_total_pts)
+    
+    selected_player_state      <- substr(selected_player_row_2nd_line,  4,  5)
+    
+    selected_player_rating_pre <- substr(selected_player_row_2nd_line, 22, 26)
+    selected_player_rating_pre <- as.integer(selected_player_rating_pre)
+    
+    #player's information combined and added to list
+    player_info_list <- list(selected_player_name,
+                          selected_player_state,
+                          selected_player_total_pts,
+                          selected_player_rating_pre,
+                          average)
+    
+    #end of iteration, player's information added to the data frame
+    player_s_info_df <- rbind2(player_s_info_df, player_info_list)
+   
+  }
+}
+
+```
+
+
+The for loop iterates through each field of the avareage colum of the dataframe and inserts the calculated avearge value.
+```{r}
+
+# loop iterates through the last column of the data frame
+pre_rate_column <- c(player_s_info_df[, 4])
+for(i in 1:length(pre_rate_column)){
+  column_total <- sum(player_s_info_df[, 4]) - player_s_info_df[i, 4]
+  
+  num_of_col_elemts_less_one <- length(pre_rate_column) - 1
+  
+  average <- column_total / num_of_col_elemts_less_one
+  
+  player_s_info_df[i, 5] <- as.integer(average)
+
+}
+
+```
+
+
+The columns names of the data frame is updated as required.
+```{r}
+colnames(player_s_info_df) <- c("Player’s Name",
+                                "Player’s State",
+                                "Total Number of Points",
+                                "Player’s Pre-Rating",
+                                "Average Pre Chess Rating of Opponents")
+```
+
+
+Finally, the results of the opreation is output as a .CSV file to GITHUB.
+```{r}
+
+write.csv(player_s_info_df, "chess_stats.csv")
+
+```
+
